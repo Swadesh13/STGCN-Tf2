@@ -32,7 +32,7 @@ def MAPE(v, v_):
     :param v_: np.ndarray or int, prediction.
     :return: int, MAPE averages on all elements of input.
     '''
-    return np.mean(np.abs(v_ - v) / (v + 1e-5))
+    return np.mean(np.abs(v_ - v) / (v + 1e-5))*100
 
 
 def RMSE(v, v_):
@@ -66,18 +66,18 @@ def evaluation(y, y_, x_stats):
     '''
     dim = len(y_.shape)
 
-    if dim == 3:
+    if dim == 3 or dim == 4:
         # single_step case
         v = z_inverse(y, x_stats['mean'], x_stats['std'])
         v_ = z_inverse(y_, x_stats['mean'], x_stats['std'])
         return np.array([MAPE(v, v_), MAE(v, v_), RMSE(v, v_)])
-    else:
-        # multi_step case
-        tmp_list = []
-        # y -> [time_step, batch_size, n_route, 1]
-        y = np.swapaxes(y, 0, 1)
-        # recursively call
-        for i in range(y_.shape[0]):
-            tmp_res = evaluation(y[i], y_[i], x_stats)
-            tmp_list.append(tmp_res)
-        return np.concatenate(tmp_list, axis=-1)
+    # else:
+    #     # multi_step case
+    #     tmp_list = []
+    #     # y -> [time_step, batch_size, n_route, 1]
+    #     # y = np.swapaxes(y, 0, 1)
+    #     # recursively call
+    #     for i in range(y_.shape[0]):
+    #         tmp_res = evaluation(y[i], y_[i], x_stats)
+    #         tmp_list.append(tmp_res)
+    #     return np.concatenate(tmp_list, axis=-1)

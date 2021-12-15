@@ -2,7 +2,7 @@ from utils.math_utils import z_score
 
 import numpy as np
 import pandas as pd
-
+from scipy.ndimage.filters import gaussian_filter1d
 
 class Dataset(object):
     def __init__(self, data, stats):
@@ -23,20 +23,23 @@ class Dataset(object):
         return self.__data[type] * self.std + self.mean
 
 
-def seq_gen(len_seq, data_seq, offset, n_frame, n_route, C_0=1):
+def seq_gen(len_seq, data_seq, offset, n_frame, n_route, smooth=0, C_0=1):
     '''
     Generate data in the form of standard sequence unit.
     :param len_seq: int, the length of target date sequence.
     :param data_seq: np.ndarray, source data / time-series.
     :param offset:  int, the starting index of different dataset type.
-    :param n_frame: int, the number of frame within a standard sequence unit,
-                         which contains n_his = 12 and n_pred = 9 (3 /15 min, 6 /30 min & 9 /45 min).
+    :param n_frame: int, the number of frame within a standard sequence unit, which contains n_his = 12 and n_pred = 9 (3 /15 min, 6 /30 min & 9 /45 min).
     :param n_route: int, the number of routes in the graph.
     :param day_slot: int, the number of time slots per day, controlled by the time window (5 min as default).
+    :param smooth: int, value of sigma in gaussian filter (smoothing).
     :param C_0: int, the size of input channel.
     :return: np.ndarray, [len_seq, n_frame, n_route, C_0].
     '''
     n_slot = len_seq - n_frame + 1
+
+    if smooth:
+        data_seq[:len_seq, :] = gaussian_filter1d(data_seq[:len_seq, :], 2, axis=0)
 
     tmp_seq = np.zeros((n_slot, n_frame, n_route, C_0))
     for i in range(n_slot):
@@ -46,15 +49,15 @@ def seq_gen(len_seq, data_seq, offset, n_frame, n_route, C_0=1):
     return tmp_seq
 
 #* Training data only. Only test??
-def data_gen(file_path, n_route, n_frame=21):
+def data_gen(file_path, n_route, n_frame=21, smooth_factor=0):
     '''
     Source file load and dataset generation.
     :param file_path: str, the file path of data source.
     :param data_config: tuple, the configs of dataset in train, validation, test.
     :param n_route: int, the number of routes in the graph.
-    :param n_frame: int, the number of frame within a standard sequence unit,
-                         which contains n_his = 12 and n_pred = 9 (3 /15 min, 6 /30 min & 9 /45 min).
+    :param n_frame: int, the number of frame within a standard sequence unit, which contains n_his = 12 and n_pred = 9 (3 /15 min, 6 /30 min & 9 /45 min).
     :param day_slot: int, the number of time slots per day, controlled by the time window (5 min as default).
+    :param smooth: bool, if smooth data (may help in training, reject outliers).
     :return: dict, dataset that contains training, validation and test with stats.
     '''
     # generate training, validation and test data
@@ -66,7 +69,7 @@ def data_gen(file_path, n_route, n_frame=21):
     l = len(data_seq)
     n_train, n_val, n_test = int(l*.8), int(l*.1), int(l*.1)
 
-    seq_train = seq_gen(n_train, data_seq, 0, n_frame, n_route)
+    seq_train = seq_gen(n_train, data_seq, 0, n_frame, n_route, smooth_factor)
     seq_val = seq_gen(n_val, data_seq, n_train, n_frame, n_route)
     seq_test = seq_gen(n_test, data_seq, n_train + n_val, n_frame, n_route)
 
