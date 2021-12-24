@@ -18,7 +18,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
 def params():
-    num_blocks = Integer(low=2, high=16, name='num_blocks')
+    num_blocks = Integer(low=2, high=8, name='num_blocks')
     learning_rate = Real(low=1e-4, high=1e-2, prior='log-uniform', name='learning_rate')
     optim = Categorical(categories=['Adam','RMSprop','SGD'], name='optim')
     ks = Categorical(categories=[3,5,7], name='ks')
@@ -57,7 +57,7 @@ def fitness(a):
         ks = ks,
         kt = kt,
         batch_size = 64,
-        epochs = 1,
+        epochs = 75,
         datafile = "Delhi_PM2.5_new.csv",
         graph = 'PollutionW_km2_new.csv',
         opt = optim,
@@ -78,7 +78,7 @@ def fitness(a):
     elif num_blocks == 7:
         blocks = [[1, 8, 16], [16, 16, 32], [32, 32, 64], [64, 64, 128], [128, 128, 256], [256, 256, 512], [512, 512, 512]]
     elif num_blocks == 8:
-        blocks = [[1, 8, 16], [16, 16, 32], [32, 32, 64], [64, 64, 64], [128, 128, 128], [256, 256, 256], [512, 512, 512], [512, 1024, 1024]]
+        blocks = [[1, 8, 16], [16, 16, 32], [32, 32, 64], [64, 64, 64], [64, 128, 128], [128, 256, 256], [256, 512, 512], [512, 1024, 1024]]
 
     W = weight_matrix(pjoin('./dataset', args.graph), scaling=False)
     # Calculate graph kernel
@@ -88,7 +88,11 @@ def fitness(a):
 
     PeMS = data_gen(pjoin('./dataset', args.datafile), n, n_his + n_pred, 0)
     
-    test_loss = model_train(PeMS, Lk, blocks, args)
+    try:
+        test_loss = model_train(PeMS, Lk, blocks, args)
+    except Exception as e:
+        print(e)
+        test_loss = np.inf
 
     global least_mae
 
