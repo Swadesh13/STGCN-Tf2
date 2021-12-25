@@ -20,7 +20,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 def params():
     num_blocks = Integer(low=2, high=8, name='num_blocks')
     learning_rate = Real(low=1e-4, high=1e-2, prior='log-uniform', name='learning_rate')
-    optim = Categorical(categories=['Adam','RMSprop','SGD'], name='optim')
+    optim = Categorical(categories=['Adam','RMSprop'], name='optim')
     ks = Categorical(categories=[3,5,7], name='ks')
     kt = Categorical(categories=[3,5,7], name='kt')
 

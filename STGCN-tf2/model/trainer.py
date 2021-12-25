@@ -25,29 +25,32 @@ def model_train(inputs: Dataset, graph_kernel, blocks, args, sum_path='./output/
     n, n_his, n_pred = args.n_route, args.n_his, args.n_pred
     Ks, Kt = args.ks, args.kt
     batch_size, epochs, inf_mode, opt = args.batch_size, args.epochs, args.inf_mode, args.opt
+    train_data = inputs.get_data("train")
+    val_data = inputs.get_data("val")
+    steps_per_epoch = math.ceil(train_data.shape[0]/batch_size)
 
     model = STGCN_Model(inputs.get_data("train").shape[1:], batch_size, graph_kernel, n_his, Ks, Kt, blocks, act_func="GLU", norm="layer", dropout=0.1)
+    lr_func = keras.optimizers.schedules.PiecewiseConstantDecay(
+        [50*steps_per_epoch, 60*steps_per_epoch, 70*steps_per_epoch],
+        [args.lr, 0.75*args.lr, 0.5*args.lr, 0.25*args.lr]
+    )
     if opt == "RMSprop":
-        optimizer = keras.optimizers.RMSprop(args.lr)
+        optimizer = keras.optimizers.RMSprop(lr_func)
     elif opt == "Adam":
-        optimizer = keras.optimizers.Adam(args.lr)
-    elif opt == "SGD":
-        optimizer = keras.optimizers.SGD(args.lr)
+        optimizer = keras.optimizers.Adam(lr_func)
     else:
         raise NotImplementedError(f'ERROR: optimizer "{opt}" is not implemented')
 
     model.compile(optimizer=optimizer, loss=custom_loss, metrics=[keras.metrics.MeanAbsoluteError(name="mae"), keras.metrics.RootMeanSquaredError(name="rmse"), keras.metrics.MeanAbsolutePercentageError(name="mape")])
 
     print("Training Model on Data")
-    train_data = inputs.get_data("train")
-    val_data = inputs.get_data("val")
     best_val_mae = np.inf
     weights_file = f"best_nblocks_{len(blocks)}_nhis_{args.n_his}_opt_{opt}_ks_{Ks}_kt_{Kt}_lr_{args.lr}.h5"
     for epoch in range(epochs):
         print(f"\nEpoch {epoch+1} / {epochs}")
         train_loss = 0
         start_time = time.time()
-        for batch in tqdm.tqdm(gen_batch(train_data, batch_size, dynamic_batch=True, shuffle=False), total=math.ceil(train_data.shape[0]/batch_size)):
+        for batch in tqdm.tqdm(gen_batch(train_data, batch_size, dynamic_batch=True, shuffle=False), total=steps_per_epoch):
             with tf.GradientTape() as tape:
                 y_pred = model(batch[:, :n_his, :, :], training=True)
                 loss = custom_loss(batch[:, n_his:n_his+1, :, :], y_pred)
@@ -85,4 +88,4 @@ def model_train(inputs: Dataset, graph_kernel, blocks, args, sum_path='./output/
 
     test_m = evaluation(y_test, preds, inputs.get_stats())
     print("TEST (MAPE, MAE, RMSE):", test_m)
-    return test_m[1]
+    return float(test_m[1])
