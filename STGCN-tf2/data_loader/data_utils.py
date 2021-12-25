@@ -67,11 +67,11 @@ def data_gen(file_path, n_route, n_frame=21, smooth_factor=0):
         print(f'ERROR: input file was not found in {file_path}.')
 
     l = len(data_seq)
-    n_train, n_val, n_test = int(l*.8), int(l*.1), int(l*.1)
+    n_train, n_val, n_test = int(l*.92), int(l*.08), int(l*.08)
 
     seq_train = seq_gen(n_train, data_seq, 0, n_frame, n_route, smooth_factor)
     seq_val = seq_gen(n_val, data_seq, n_train, n_frame, n_route)
-    seq_test = seq_gen(n_test, data_seq, n_train + n_val, n_frame, n_route)
+    seq_test = seq_gen(n_test, data_seq, n_train, n_frame, n_route)
 
     # x_stats: dict, the stats for the train dataset, including the value of mean and standard deviation.
     x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}
