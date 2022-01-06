@@ -16,6 +16,9 @@ class Dataset(object):
     def get_stats(self):
         return {'mean': self.mean, 'std': self.std}
 
+    def get_val_stats(self):
+        return {'val mean': np.mean(self.__data['val']), 'val std': np.std(self.__data['val'])}
+
     def get_len(self, type):
         return len(self.__data[type])
 
@@ -23,7 +26,7 @@ class Dataset(object):
         return self.__data[type] * self.std + self.mean
 
 
-def seq_gen(len_seq, data_seq, offset, n_frame, n_route, smooth=0, C_0=1):
+def seq_gen(len_seq, data_seq, offset, n_frame, n_route, C_0=1):
     '''
     Generate data in the form of standard sequence unit.
     :param len_seq: int, the length of target date sequence.
@@ -31,33 +34,28 @@ def seq_gen(len_seq, data_seq, offset, n_frame, n_route, smooth=0, C_0=1):
     :param offset:  int, the starting index of different dataset type.
     :param n_frame: int, the number of frame within a standard sequence unit, which contains n_his = 12 and n_pred = 9 (3 /15 min, 6 /30 min & 9 /45 min).
     :param n_route: int, the number of routes in the graph.
-    :param day_slot: int, the number of time slots per day, controlled by the time window (5 min as default).
-    :param smooth: int, value of sigma in gaussian filter (smoothing).
     :param C_0: int, the size of input channel.
     :return: np.ndarray, [len_seq, n_frame, n_route, C_0].
     '''
     n_slot = len_seq - n_frame + 1
 
-    if smooth:
-        data_seq[:len_seq, :] = gaussian_filter1d(data_seq[:len_seq, :], 2, axis=0)
-
     tmp_seq = np.zeros((n_slot, n_frame, n_route, C_0))
     for i in range(n_slot):
         sta = i + offset
         end = sta + n_frame
-        tmp_seq[i, :, :, :] = np.array(np.expand_dims(data_seq[sta:end, :], axis=2))
+        d = data_seq[sta:end, :]
+        tmp_seq[i, :, :, :] = np.reshape(d, (*(d.shape[:-1]), n_route, C_0))
     return tmp_seq
 
 #* Training data only. Only test??
-def data_gen(file_path, n_route, n_frame=21, smooth_factor=0):
+def data_gen(file_path, n_route, n_frame=21, C_0=1):
     '''
     Source file load and dataset generation.
     :param file_path: str, the file path of data source.
     :param data_config: tuple, the configs of dataset in train, validation, test.
     :param n_route: int, the number of routes in the graph.
     :param n_frame: int, the number of frame within a standard sequence unit, which contains n_his = 12 and n_pred = 9 (3 /15 min, 6 /30 min & 9 /45 min).
-    :param day_slot: int, the number of time slots per day, controlled by the time window (5 min as default).
-    :param smooth: bool, if smooth data (may help in training, reject outliers).
+    :param C_0: int, the size of input channel.
     :return: dict, dataset that contains training, validation and test with stats.
     '''
     # generate training, validation and test data
@@ -69,9 +67,9 @@ def data_gen(file_path, n_route, n_frame=21, smooth_factor=0):
     l = len(data_seq)
     n_train, n_val, n_test = int(l*.92), int(l*.08), int(l*.08)
 
-    seq_train = seq_gen(n_train, data_seq, 0, n_frame, n_route, smooth_factor)
-    seq_val = seq_gen(n_val, data_seq, n_train, n_frame, n_route)
-    seq_test = seq_gen(n_test, data_seq, n_train, n_frame, n_route)
+    seq_train = seq_gen(n_train, data_seq, 0, n_frame, n_route, C_0)
+    seq_val = seq_gen(n_val, data_seq, n_train, n_frame, n_route, C_0)
+    seq_test = seq_gen(n_test, data_seq, n_train, n_frame, n_route, C_0)
 
     # x_stats: dict, the stats for the train dataset, including the value of mean and standard deviation.
     x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}
@@ -80,10 +78,6 @@ def data_gen(file_path, n_route, n_frame=21, smooth_factor=0):
     x_train = z_score(seq_train, x_stats['mean'], x_stats['std'])
     x_val = z_score(seq_val, x_stats['mean'], x_stats['std'])
     x_test = z_score(seq_test, x_stats['mean'], x_stats['std'])
-
-    # x_train = seq_train
-    # x_val = seq_val
-    # x_test = seq_test
 
     x_data = {'train': x_train, 'val': x_val, 'test': x_test}
     dataset = Dataset(x_data, x_stats)

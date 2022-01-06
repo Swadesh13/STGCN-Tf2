@@ -1,5 +1,5 @@
 from data_loader.data_utils import Dataset, gen_batch
-from model.model import STGCN_Model
+from model.model import STGCN_Model, STGCNB_Model
 from os.path import join as pjoin
 from utils.math_utils import evaluation, MAPE, MAE, RMSE
 
@@ -29,7 +29,7 @@ def model_train(inputs: Dataset, graph_kernel, blocks, args, sum_path='./output/
     val_data = inputs.get_data("val")
     steps_per_epoch = math.ceil(train_data.shape[0]/batch_size)
 
-    model = STGCN_Model(inputs.get_data("train").shape[1:], batch_size, graph_kernel, n_his, Ks, Kt, blocks, act_func="GLU", norm="layer", dropout=0.1)
+    model = STGCN_Model(train_data.shape[1:], batch_size, graph_kernel, n_his, Ks, Kt, blocks, act_func="GLU", norm="layer", dropout=0.1)
     lr_func = keras.optimizers.schedules.PiecewiseConstantDecay(
         [50*steps_per_epoch, 60*steps_per_epoch, 70*steps_per_epoch],
         [args.lr, 0.75*args.lr, 0.5*args.lr, 0.25*args.lr]
@@ -41,7 +41,7 @@ def model_train(inputs: Dataset, graph_kernel, blocks, args, sum_path='./output/
     else:
         raise NotImplementedError(f'ERROR: optimizer "{opt}" is not implemented')
 
-    model.compile(optimizer=optimizer, loss=custom_loss, metrics=[keras.metrics.MeanAbsoluteError(name="mae"), keras.metrics.RootMeanSquaredError(name="rmse"), keras.metrics.MeanAbsolutePercentageError(name="mape")])
+    model.compile(optimizer=optimizer, loss=custom_loss)
 
     print("Training Model on Data")
     best_val_mae = np.inf
@@ -50,7 +50,7 @@ def model_train(inputs: Dataset, graph_kernel, blocks, args, sum_path='./output/
         print(f"\nEpoch {epoch+1} / {epochs}")
         train_loss = 0
         start_time = time.time()
-        for batch in tqdm.tqdm(gen_batch(train_data, batch_size, dynamic_batch=True, shuffle=False), total=steps_per_epoch):
+        for batch in tqdm.tqdm(gen_batch(train_data, batch_size, dynamic_batch=True, shuffle=True), total=steps_per_epoch):
             with tf.GradientTape() as tape:
                 y_pred = model(batch[:, :n_his, :, :], training=True)
                 loss = custom_loss(batch[:, n_his:n_his+1, :, :], y_pred)

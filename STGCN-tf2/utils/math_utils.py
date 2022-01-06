@@ -62,7 +62,7 @@ def evaluation(y, y_, x_stats):
     :param y: np.ndarray or int, ground truth.
     :param y_: np.ndarray or int, prediction.
     :param x_stats: dict, paras of z-scores (mean & std).
-    :return: np.ndarray, averaged metric values.
+    :return: np.ndarray, averaged metric values (MAPE, MAE, RMSE).
     '''
     dim = len(y_.shape)
 
