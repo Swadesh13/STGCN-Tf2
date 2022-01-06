@@ -41,7 +41,7 @@ def model_train(inputs: Dataset, graph_kernel, blocks, args, sum_path='./output/
     else:
         raise NotImplementedError(f'ERROR: optimizer "{opt}" is not implemented')
 
-    model.compile(optimizer=optimizer, loss=custom_loss)
+        model.compile(optimizer=optimizer, loss=custom_loss, metrics=[keras.metrics.MeanAbsoluteError(name="mae"), keras.metrics.RootMeanSquaredError(name="rmse"), keras.metrics.MeanAbsolutePercentageError(name="mape")])
 
     print("Training Model on Data")
     best_val_mae = np.inf
