@@ -12,7 +12,7 @@ if tf.test.is_built_with_cuda():
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--n_route', type=int, default=228)
+parser.add_argument('--n_route', type=int, default=22)
 parser.add_argument('--n_his', type=int, default=12)
 parser.add_argument('--n_pred', type=int, default=9)
 parser.add_argument('--batch_size', type=int, default=64)
@@ -25,8 +25,7 @@ parser.add_argument('--opt', type=str, default='RMSprop')
 parser.add_argument('--inf_mode', type=str, default='merge')
 parser.add_argument('--datafile', type=str, default=f'Delhi_PM2.5_new.csv')
 parser.add_argument('--graph', type=str, default='PollutionW_km2_new.csv')
-parser.add_argument('--day_slot', type=int, default=24)
-parser.add_argument('--smooth_factor', type=int, default=0)
+parser.add_argument('--channels', type=int, default=1)
 
 args = parser.parse_args()
 print(f'Training configs: {args}')
@@ -34,7 +33,8 @@ print(f'Training configs: {args}')
 n, n_his, n_pred = args.n_route, args.n_his, args.n_pred
 Ks, Kt = args.ks, args.kt
 # blocks: settings of channel size in st_conv_blocks / bottleneck design
-blocks = [[1, 32, 64], [64, 64, 64], [64, 64, 128]]
+blocks = [[args.channels, 32, 64], [64, 64, 64], [64, 128, 128]]
+# blocks = [[args.channels, 32, 32], [64, 64, 64], [128, 128, 128]] # for STGCN-B
 
 W = weight_matrix(pjoin('./dataset', args.graph), scaling=False)
 # Calculate graph kernel
@@ -43,10 +43,10 @@ L = scaled_laplacian(W)
 Lk = cheb_poly_approx(L, Ks, n)
 # tf.add_to_collection(name='graph_kernel', value=tf.cast(tf.constant(Lk), tf.float64))
 
-PeMS = data_gen(pjoin('./dataset', args.datafile), n, n_his + n_pred, args.smooth_factor)
-print(f'>> Loading dataset with Mean: {PeMS.mean:.2f}, STD: {PeMS.std:.2f}')
+PeMS = data_gen(pjoin('./dataset', args.datafile), n, n_his + n_pred, args.channels)
+# print(f'>> Loading dataset with Mean: {PeMS.mean:.2f}, STD: {PeMS.std:.2f}')
 
-print(PeMS.get_data("train").shape)
+# print(PeMS.get_data("train").shape)
 
 if __name__ == '__main__':
     model_train(PeMS, Lk, blocks, args)
