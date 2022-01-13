@@ -1,5 +1,5 @@
 from data_loader.data_utils import Dataset, gen_batch
-from model.model import STGCN_Model, STGCNB_Model
+from model.model import STGCN_Model
 from os.path import join as pjoin
 from utils.math_utils import evaluation, MAPE, MAE, RMSE
 
@@ -12,7 +12,6 @@ import math
 
 
 def custom_loss(y_true, y_pred) -> tf.Tensor:
-    # return tf.reduce_mean(tf.math.squared_difference(y_true, y_pred))
     return tf.nn.l2_loss(y_true - y_pred)
 
 def model_train(inputs: Dataset, graph_kernel, blocks, args, sum_path='./output/tensorboard'):
@@ -41,7 +40,7 @@ def model_train(inputs: Dataset, graph_kernel, blocks, args, sum_path='./output/
     else:
         raise NotImplementedError(f'ERROR: optimizer "{opt}" is not implemented')
 
-        model.compile(optimizer=optimizer, loss=custom_loss, metrics=[keras.metrics.MeanAbsoluteError(name="mae"), keras.metrics.RootMeanSquaredError(name="rmse"), keras.metrics.MeanAbsolutePercentageError(name="mape")])
+    model.compile(optimizer=optimizer, loss=custom_loss, metrics=[keras.metrics.MeanAbsoluteError(name="mae"), keras.metrics.RootMeanSquaredError(name="rmse"), keras.metrics.MeanAbsolutePercentageError(name="mape")])
 
     print("Training Model on Data")
     best_val_mae = np.inf
@@ -82,9 +81,6 @@ def model_train(inputs: Dataset, graph_kernel, blocks, args, sum_path='./output/
     x_test = inputs.get_data("test")[:, :n_his, :, :]
     y_test = inputs.get_data("test")[:, n_his:n_his+1, :, :]
     preds = model(x_test)
-
-    # print(np.array(inputs.get_data("test")[:1, n_his:n_his+1, :, :], dtype=np.float))
-    # print(model(inputs.get_data("test")[:1, :n_his, :, :]))
 
     test_m = evaluation(y_test, preds, inputs.get_stats())
     print("TEST (MAPE, MAE, RMSE):", test_m)

@@ -1,8 +1,6 @@
 from utils.math_utils import z_score
-
 import numpy as np
 import pandas as pd
-from scipy.ndimage.filters import gaussian_filter1d
 
 class Dataset(object):
     def __init__(self, data, stats):
@@ -52,7 +50,6 @@ def data_gen(file_path, n_route, n_frame=21, C_0=1):
     '''
     Source file load and dataset generation.
     :param file_path: str, the file path of data source.
-    :param data_config: tuple, the configs of dataset in train, validation, test.
     :param n_route: int, the number of routes in the graph.
     :param n_frame: int, the number of frame within a standard sequence unit, which contains n_his = 12 and n_pred = 9 (3 /15 min, 6 /30 min & 9 /45 min).
     :param C_0: int, the size of input channel.
@@ -65,11 +62,11 @@ def data_gen(file_path, n_route, n_frame=21, C_0=1):
         print(f'ERROR: input file was not found in {file_path}.')
 
     l = len(data_seq)
-    n_train, n_val, n_test = int(l*.92), int(l*.08), int(l*.08)
+    n_train, n_val, n_test = int(l*.8), int(l*.1), int(l*.1)
 
     seq_train = seq_gen(n_train, data_seq, 0, n_frame, n_route, C_0)
     seq_val = seq_gen(n_val, data_seq, n_train, n_frame, n_route, C_0)
-    seq_test = seq_gen(n_test, data_seq, n_train, n_frame, n_route, C_0)
+    seq_test = seq_gen(n_test, data_seq, n_train + n_val, n_frame, n_route, C_0)
 
     # x_stats: dict, the stats for the train dataset, including the value of mean and standard deviation.
     x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}
