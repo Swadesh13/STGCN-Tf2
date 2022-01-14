@@ -150,7 +150,7 @@ class OutputLayer(keras.layers.Layer):
     :param norm: str, normalization function.
     :return: tensor, [batch_size, 1, n_route, 1].
     '''
-    def __init__(self, Kt, n, channel, outc=1, act_func="GLU", norm="L2"):
+    def __init__(self, Kt, n, channel, outc=1, act_func="GLU", norm="layer"):
         super().__init__()
         self.Kt = Kt
         self.n = n
@@ -193,7 +193,7 @@ class STConvBlock(keras.layers.Layer):
     :param pad: string, Temporal layer padding - VALID or SAME.
     :return: tensor, [batch_size, time_step, n_route, c_out].
     '''
-    def __init__(self, graph_kernel, Ks, Kt, channels, act_func='GLU', norm='L2', dropout=0.2, pad='VALID'):
+    def __init__(self, graph_kernel, Ks, Kt, channels, act_func='GLU', norm='layer', dropout=0.2, pad='VALID'):
         super().__init__()
         self.norm = norm
         c_si, c_t, c_oo = channels

@@ -19,14 +19,14 @@ class STGCN_Model(keras.Model):
     :param pad: string, Temporal layer padding - VALID or SAME.
     :return: tensor, [batch_size, time_step, n_route, c_out].
     '''
-    def __init__(self, input_shape, batch_size, graph_kernel, n_his, Ks, Kt, blocks, act_func, norm, dropout, pad = "VALID", **kwargs):
+    def __init__(self, input_shape, graph_kernel, n_his, Ks, Kt, blocks, act_func, norm, dropout, pad = "VALID", **kwargs):
         super(STGCN_Model, self).__init__(name = "STGCN" ,**kwargs)
         self.n_his = n_his
         self.stconv_blocks = []
         Ko = n_his
 
         # Input Layer
-        self.input_layer = keras.layers.InputLayer(input_shape=input_shape, batch_size=batch_size, dtype=tf.float64)
+        self.input_layer = keras.layers.InputLayer(input_shape=input_shape, dtype=tf.float64)
         # ST Blocks
         for channels in blocks:
             self.stconv_blocks.append(STConvBlock(graph_kernel, Ks, Kt, channels, act_func, norm, dropout, pad))

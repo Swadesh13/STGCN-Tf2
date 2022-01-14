@@ -1,5 +1,5 @@
 import numpy as np
-
+import tensorflow as tf
 
 def z_score(x, mean, std):
     '''
@@ -62,22 +62,31 @@ def evaluation(y, y_, x_stats):
     :param y: np.ndarray or int, ground truth.
     :param y_: np.ndarray or int, prediction.
     :param x_stats: dict, paras of z-scores (mean & std).
-    :return: np.ndarray, averaged metric values (MAPE, MAE, RMSE).
+    :return: np.ndarray, averaged metric values.
     '''
     dim = len(y_.shape)
 
-    if dim == 3 or dim == 4:
+    if dim == 3:
         # single_step case
         v = z_inverse(y, x_stats['mean'], x_stats['std'])
         v_ = z_inverse(y_, x_stats['mean'], x_stats['std'])
         return np.array([MAPE(v, v_), MAE(v, v_), RMSE(v, v_)])
-    # else:
-    #     # multi_step case
-    #     tmp_list = []
-    #     # y -> [time_step, batch_size, n_route, 1]
-    #     # y = np.swapaxes(y, 0, 1)
-    #     # recursively call
-    #     for i in range(y_.shape[0]):
-    #         tmp_res = evaluation(y[i], y_[i], x_stats)
-    #         tmp_list.append(tmp_res)
-    #     return np.concatenate(tmp_list, axis=-1)
+    else:
+        # multi_step case
+        tmp_list = []
+        # y -> [time_step, batch_size, n_route, 1]
+        y = np.swapaxes(y, 0, 1)
+        # recursively call
+        for i in range(y_.shape[0]):
+            tmp_res = evaluation(y[i], y_[i], x_stats)
+            tmp_list.append(tmp_res)
+        return np.concatenate(tmp_list, axis=-1)
+
+def custom_loss(y_true, y_pred) -> tf.Tensor:
+    '''
+    Cutom Loss function.
+    :param y_true: tf.Tensor, ground truth.
+    :param y_pred: tf.Tensor, prediction.
+    :return: tf.Tensor, custom loss value (Here L2 loss).
+    '''
+    return tf.nn.l2_loss(y_true - y_pred)

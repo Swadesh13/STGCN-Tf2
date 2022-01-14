@@ -1,5 +1,6 @@
 test.py
 *.h5
+output/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
