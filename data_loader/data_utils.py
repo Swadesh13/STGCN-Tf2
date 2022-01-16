@@ -14,9 +14,6 @@ class Dataset(object):
     def get_stats(self):
         return {'mean': self.mean, 'std': self.std}
 
-    def get_val_stats(self):
-        return {'val mean': np.mean(self.__data['val']), 'val std': np.std(self.__data['val'])}
-
     def get_len(self, type):
         return len(self.__data[type])
 
