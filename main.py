@@ -1,4 +1,5 @@
 import argparse
+import datetime
 from model.trainer import model_train
 from model.tester import model_test
 from data_loader.data_utils import *
@@ -31,6 +32,11 @@ parser.add_argument('--logs', type=str, default="output/")
 args = parser.parse_args()
 print(f'Training configs: {args}')
 
+current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+args.logs = pjoin(args.logs, current_time)
+args.model_path = pjoin(args.logs, 'model')
+args.logs = pjoin(args.logs, 'logs')
+os.makedirs(args.model_path, exist_ok=True)
 os.makedirs(args.logs, exist_ok=True)
 n, n_his, n_pred = args.n_route, args.n_his, args.n_pred
 Ks, Kt = args.ks, args.kt
@@ -50,4 +56,4 @@ print("Val shape:", PeMS.get_data("val").shape)
 
 if __name__ == '__main__':
     model_train(PeMS, Lk, blocks, args)
-    model_test(PeMS, PeMS.get_len('test'), n_his, n_pred, args.inf_mode)
+    model_test(PeMS, PeMS.get_len('test'), n_his, n_pred, args.inf_mode, args.model_path)

@@ -6,7 +6,6 @@ from utils.math_utils import custom_loss
 import tensorflow as tf
 import tensorflow.keras as keras
 import numpy as np
-import datetime
 import time
 import tqdm
 import math
@@ -28,11 +27,9 @@ def model_train(inputs: Dataset, graph_kernel, blocks, args):
     val_data = inputs.get_data("val")
     steps_per_epoch = math.ceil(train_data.shape[0]/batch_size)
 
-    current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    model_path = os.path.join(args.logs, current_time, 'model')
-    os.makedirs(model_path, exist_ok=True)
-    train_log_dir = os.path.join(args.logs, current_time, 'logs', 'train')
-    test_log_dir = os.path.join(args.logs, current_time, 'logs', 'test')
+    os.makedirs(args.model_path, exist_ok=True)
+    train_log_dir = os.path.join(args.logs, 'train')
+    test_log_dir = os.path.join(args.logs, 'test')
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     test_summary_writer = tf.summary.create_file_writer(test_log_dir)
 
@@ -101,8 +98,8 @@ def model_train(inputs: Dataset, graph_kernel, blocks, args):
                 tf.summary.scalar(m.name, m.result(), step=epoch)
                 if m.name == "mae" and best_val_mae > m.result():
                     best_val_mae = m.result()
-                    model.save(model_path)
-                    print(f"Saving best model at {model_path} (based on MAE)")
+                    model.save(args.model_path)
+                    print(f"Saving best model at {args.model_path} (based on MAE)")
         print()
         model.reset_metrics()
 
