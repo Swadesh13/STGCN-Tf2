@@ -22,7 +22,7 @@ def model_train(inputs: Dataset, graph_kernel, blocks, args):
     n, n_his, n_pred = args.n_route, args.n_his, args.n_pred
     Ks, Kt = args.ks, args.kt
     batch_size, epochs, inf_mode, opt = args.batch_size, args.epochs, args.inf_mode, args.opt
-    train_data = inputs.get_data("train")[:32*2]
+    train_data = inputs.get_data("train")
     val_data = inputs.get_data("val")
     steps_per_epoch = math.ceil(train_data.shape[0]/batch_size)
 
@@ -84,7 +84,7 @@ def model_train(inputs: Dataset, graph_kernel, blocks, args):
             tf.summary.scalar('loss', val_loss, step=epoch)
         print()
 
-        tf.saved_model.save(model, os.path.join(args.model_path, str(epoch)))
+        # tf.saved_model.save(model, os.path.join(args.model_path, str(epoch)))
 
         # checkpoint = tf.train.Checkpoint(model)
         # checkpoint.save(os.path.join(args.model_path, str(epoch)))
