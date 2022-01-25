@@ -33,6 +33,7 @@ class TemporalConvLayer(keras.layers.Layer):
         self.dense_weights = self.add_weight(name="dense_weights", shape=[self.Kt, 1, self.c_in, c_out], dtype=tf.float64, initializer='glorot_uniform', trainable=True)
         self.dense_bias =  self.add_weight(name="dense_bias", shape=[c_out], dtype=tf.float64, trainable=True)
 
+    @tf.function
     def call(self, x: tf.Tensor):
         _, T, n, _ = x.shape
         x = tf.cast(x, tf.float64)
@@ -86,6 +87,7 @@ class SpatioConvLayer(keras.layers.Layer):
         self.dense_weights = self.add_weight(name="dense_weights", shape=[self.Ks*self.c_in, self.c_out], dtype=tf.float64, initializer='glorot_uniform', trainable=True)
         self.dense_bias =  self.add_weight(name="dense_bias", shape=[self.c_out], dtype=tf.float64, trainable=True)
 
+    @tf.function
     def call(self, x: tf.Tensor):
         _, T, n, _ = x.shape
         x = tf.cast(x, tf.float64)
@@ -132,7 +134,8 @@ class FullyConLayer(layers.Layer):
     def build(self, input_shape):
         self.dense_weights = self.add_weight(name="dense_weights", shape=[1, 1, self.channel, self.outc], dtype=tf.float64, initializer='glorot_uniform', trainable=True)
         self.dense_bias =  self.add_weight(name="dense_bias", shape=[self.n, self.outc], dtype=tf.float64, trainable=True)
-
+    
+    @tf.function
     def call(self, x: tf.Tensor):
         x = tf.cast(x, tf.float64)
         return tf.nn.conv2d(x, self.dense_weights, strides=[1, 1, 1, 1], padding='SAME') + self.dense_bias
@@ -166,7 +169,8 @@ class OutputLayer(keras.layers.Layer):
             self.normalization = keras.layers.LayerNormalization(axis=[2,3])
         elif norm != "L2":
             raise NotImplementedError(f'ERROR: Normalization function "{norm}" is not implemented.')
-    
+
+    @tf.function
     def call(self, x:tf.Tensor):
         x_i = self.layer1(x)
         if self.norm == "L2":
@@ -209,6 +213,7 @@ class STConvBlock(keras.layers.Layer):
         elif norm != "L2":
             raise NotImplementedError(f'ERROR: Normalization function "{norm}" is not implemented.')
 
+    @tf.function
     def call(self, x:tf.Tensor):
         x1 = self.layer1(x)
         x2 = self.layer2(x1)

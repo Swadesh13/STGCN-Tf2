@@ -25,8 +25,6 @@ class STGCN_Model(keras.Model):
         self.stconv_blocks = []
         Ko = n_his
 
-        # Input Layer
-        self.input_layer = keras.layers.InputLayer(input_shape=input_shape, dtype=tf.float64)
         # ST Blocks
         for channels in blocks:
             self.stconv_blocks.append(STConvBlock(graph_kernel, Ks, Kt, channels, act_func, norm, dropout, pad))
@@ -38,10 +36,10 @@ class STGCN_Model(keras.Model):
         else:
             raise ValueError(f'ERROR: kernel size Ko must be greater than 1, but received "{Ko}".')
 
+    @tf.function
     def call(self, x:tf.Tensor):
         inputs = x
         x = tf.cast(inputs[:, :self.n_his, :, :], tf.float64)
-        x = self.input_layer(x)
         for block in self.stconv_blocks:
             x = block(x)
         y = self.output_layer(x)

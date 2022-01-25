@@ -10,9 +10,6 @@ import os
 if tf.test.is_built_with_cuda():
     os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-os.makedirs("output", exist_ok=True)
-os.makedirs("output/models", exist_ok=True)
-os.makedirs("output/tensorboard", exist_ok=True)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--n_route', type=int, default=22)
@@ -29,10 +26,12 @@ parser.add_argument('--datafile', type=str, default=f'Delhi_PM2.5.csv')
 parser.add_argument('--graph', type=str, default='PollutionW_km2_scaled.csv')
 parser.add_argument('--scale_graph', action='store_true', default=False)
 parser.add_argument('--channels', type=int, default=1)
+parser.add_argument('--logs', type=str, default="output/")
 
 args = parser.parse_args()
 print(f'Training configs: {args}')
 
+os.makedirs(args.logs, exist_ok=True)
 n, n_his, n_pred = args.n_route, args.n_his, args.n_pred
 Ks, Kt = args.ks, args.kt
 # blocks: settings of channel size in st_conv_blocks / bottleneck design

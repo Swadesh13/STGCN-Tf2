@@ -13,23 +13,26 @@ import math
 import os
 
 
-def model_train(inputs: Dataset, graph_kernel, blocks, args, model_path="output/models/", sum_path='output/tensorboard'):
+def model_train(inputs: Dataset, graph_kernel, blocks, args):
     '''
     Train the base model.
     :param inputs: instance of class Dataset, data source for training.
+    :param graph_kernel: np.array, [n_route, Ks*n_route].
     :param blocks: list, channel configs of st_conv blocks.
     :param args: instance of class argparse, args for training.
     '''
     n, n_his, n_pred = args.n_route, args.n_his, args.n_pred
     Ks, Kt = args.ks, args.kt
     batch_size, epochs, inf_mode, opt = args.batch_size, args.epochs, args.inf_mode, args.opt
-    train_data = inputs.get_data("train")[:32*5]
+    train_data = inputs.get_data("train")
     val_data = inputs.get_data("val")
     steps_per_epoch = math.ceil(train_data.shape[0]/batch_size)
 
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    train_log_dir = os.path.join(sum_path, current_time, 'train')
-    test_log_dir = os.path.join(sum_path, current_time, 'test')
+    model_path = os.path.join(args.logs, current_time, 'model')
+    os.makedirs(model_path, exist_ok=True)
+    train_log_dir = os.path.join(args.logs, current_time, 'logs', 'train')
+    test_log_dir = os.path.join(args.logs, current_time, 'logs', 'test')
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     test_summary_writer = tf.summary.create_file_writer(test_log_dir)
 
