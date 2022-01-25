@@ -21,8 +21,6 @@ idna==3.3
 importlib-metadata==4.8.1
 isort==5.9.3
 joblib==1.1.0
-keras==2.6.0
-Keras-Preprocessing==1.1.2
 lazy-object-proxy==1.6.0
 Markdown==3.3.4
 mccabe==0.6.1

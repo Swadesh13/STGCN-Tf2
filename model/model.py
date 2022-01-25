@@ -1,8 +1,7 @@
 import tensorflow as tf
-import tensorflow.keras as keras
-from .layers import STConvBlock, OutputLayer
+from .layers import STConvBlock, OutputLayer, WB
 
-class STGCN_Model(keras.Model):
+class STGCN_Model(tf.keras.Model):
     '''
     Spatio-Temporal Graph Convolutional Neural Model.
     :param x: tensor, [batch_size, time_step, n_route, c_in].
@@ -19,25 +18,25 @@ class STGCN_Model(keras.Model):
     :param pad: string, Temporal layer padding - VALID or SAME.
     :return: tensor, [batch_size, time_step, n_route, c_out].
     '''
-    def __init__(self, input_shape, graph_kernel, n_his, Ks, Kt, blocks, act_func, norm, dropout, pad = "VALID", **kwargs):
-        super(STGCN_Model, self).__init__(name = "STGCN" ,**kwargs)
+    def __init__(self, input_shape, graph_kernel, n_his, Ks, Kt, blocks, act_func, norm, dropout, pad = "VALID"):
+        super().__init__()
         self.n_his = n_his
         self.stconv_blocks = []
         Ko = n_his
-
+        self.wb = WB()
         # ST Blocks
         for channels in blocks:
-            self.stconv_blocks.append(STConvBlock(graph_kernel, Ks, Kt, channels, act_func, norm, dropout, pad))
+            self.stconv_blocks.append(STConvBlock(self.wb, graph_kernel, Ks, Kt, channels, act_func, norm, dropout, pad))
             if pad == "VALID":
                 Ko -= 2 * (Kt - 1)
         # Output Layer
         if Ko > 1:
-            self.output_layer = OutputLayer(Ko, input_shape[1], blocks[-1][-1], blocks[0][0], act_func, norm)
+            self.output_layer = OutputLayer(self.wb, Ko, input_shape[1], blocks[-1][-1], blocks[0][0], act_func, norm)
         else:
             raise ValueError(f'ERROR: kernel size Ko must be greater than 1, but received "{Ko}".')
 
     @tf.function
-    def call(self, x:tf.Tensor):
+    def run(self, x:tf.Tensor):
         inputs = x
         x = tf.cast(inputs[:, :self.n_his, :, :], tf.float64)
         for block in self.stconv_blocks:
@@ -45,6 +44,8 @@ class STGCN_Model(keras.Model):
         y = self.output_layer(x)
         return y
 
-    def model(self): # To get brief summary
-        x = keras.Input(shape=(21, 22, 1), batch_size=1)
-        return keras.Model(inputs=[x], outputs=self.call(x))
+    def __call__(self, x):
+        return self.run(x)
+
+    def trainable_variables(self):
+        return self.wb.get_wb()

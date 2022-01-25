@@ -46,7 +46,7 @@ def multi_pred(model, seq, batch_size, n_his, n_pred, step_idx, dynamic_batch=Tr
 def model_inference(model, inputs, batch_size, n_his, n_pred, step_idx, min_va_val, min_val):
     '''
     Model inference function.
-    :param model: tf.keras Model.
+    :param model: tf Model.
     :param inputs: instance of class Dataset, data source for inference.
     :param batch_size: int, the size of batch.
     :param n_his: int, the length of historical records for training.
@@ -74,7 +74,7 @@ def model_inference(model, inputs, batch_size, n_his, n_pred, step_idx, min_va_v
     return min_va_val, min_val
 
 
-def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path='./output/models/'):
+def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path):
     '''
     Load and test saved model from the checkpoint.
     :param inputs: instance of class Dataset, data source for test.

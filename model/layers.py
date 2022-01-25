@@ -1,40 +1,68 @@
 import tensorflow as tf
-import tensorflow.keras as keras
-from tensorflow.keras import layers
-from tensorflow.python.keras.backend import dtype
+
+class WB:
+    '''
+    Keeps track of Weights and Biases of the model as tf.Variable.
+    :param name: str, Name of the Variable
+    :param shape: tuple, shape of the Variable
+    :param dtype: tf.dtype, data type of the Variable
+    :param trainable: bool, whether the Variable is trainable or not
+    :param initialize_func: function, how to initialize the weight/bias. Must take shape and dtype as argument and return a tf.Tensor.
+    '''
+    def __init__(self):
+        self.weights = []
+        self.biases = []
+
+    def get_w(self, name, shape, dtype, trainable, initialize_func = tf.random.truncated_normal):
+        w = tf.Variable(initial_value=initialize_func(shape, dtype=dtype), name=name, trainable=trainable)
+        self.weights.append(w)
+        return w
+
+    def get_b(self, name, shape, dtype, trainable, initialize_func = tf.random.truncated_normal):
+        b = tf.Variable(initial_value=initialize_func(shape, dtype=dtype), name=name, trainable=trainable)
+        self.biases.append(b)
+        return b
+
+    def get_wb(self):
+        return self.weights + self.biases
 
 
-class TemporalConvLayer(keras.layers.Layer):
+class LayerNorm:
     '''
-    Temporal convolution layer.
-    :param x: tensor, [batch_size, time_step, n_route, c_in].
-    :param Kt: int, kernel size of temporal convolution.
-    :param c_in: int, size of input channel.
-    :param c_out: int, size of output channel.
-    :param act_func: str, activation function.
-    :param pad: string, Temporal layer padding - VALID or SAME.
-    :return: tensor, [batch_size, time_step-Kt+1, n_route, c_out].
+    Layer normalization function.
+    :param x: tensor, [batch_size, time_step, n_route, channel].
+    :param scope: str, variable scope.
+    :return: tensor, [batch_size, time_step, n_route, channel].
     '''
-    def __init__(self, Kt, c_in, c_out, act_func='relu', pad='VALID'):
-        super().__init__()
+    def __init__(self, wb: WB, n_route, channel) -> None:
+        self.gamma = wb.get_w('gamma', [1, 1, n_route, channel], tf.float64, True, tf.ones)
+        self.beta = wb.get_b('beta', [1, 1, n_route, channel], tf.float64, True, tf.zeros)
+
+    @tf.function
+    def __call__(self, x):
+        mu, sigma = tf.nn.moments(x, axes=[2, 3], keepdims=True)
+        _x = (x - mu) / tf.sqrt(sigma + 1e-6) * self.gamma + self.beta
+        return _x
+
+
+class TemporalConvLayer:
+    def __init__(self, wb: WB, Kt, c_in, c_out, act_func='GLU', pad='VALID'):
         self.Kt = Kt
         self.c_in = c_in
         self.c_out = c_out
         self.act_func = act_func
         self.pad = pad
-    
-    def build(self, input_shape):
-        if self.c_in > self.c_out:
-            self.down_sample_conv_weights = self.add_weight(name="down_sample_conv_weights", shape=[1,1,self.c_in,self.c_out], dtype=tf.float64, initializer='glorot_uniform', trainable=True)
-        if self.act_func == "GLU":
-            c_out = 2*self.c_out
+        if c_in > c_out:
+            self.down_sample_conv_weights = wb.get_w(name="down_sample_conv_weights", shape=[1,1,c_in,c_out], dtype=tf.float64, trainable=True)
+        if act_func == "GLU":
+            c_o = 2*c_out
         else:
-            c_out = self.c_out
-        self.dense_weights = self.add_weight(name="dense_weights", shape=[self.Kt, 1, self.c_in, c_out], dtype=tf.float64, initializer='glorot_uniform', trainable=True)
-        self.dense_bias =  self.add_weight(name="dense_bias", shape=[c_out], dtype=tf.float64, trainable=True)
+            c_o = c_out
+        self.dense_weights = wb.get_w(name="dense_weights", shape=[Kt, 1, c_in, c_o], dtype=tf.float64, trainable=True)
+        self.dense_bias =  wb.get_b(name="dense_bias", shape=[c_o], dtype=tf.float64, trainable=True)
 
     @tf.function
-    def call(self, x: tf.Tensor):
+    def __call__(self, x):
         _, T, n, _ = x.shape
         x = tf.cast(x, tf.float64)
 
@@ -64,7 +92,7 @@ class TemporalConvLayer(keras.layers.Layer):
             raise NotImplementedError(f'ERROR: activation function "{self.act_func}" is not implemented.')
 
 
-class SpatioConvLayer(keras.layers.Layer):
+class SpatioConvLayer:
     '''
     Spatial graph convolution layer.
     :param x: tensor, [batch_size, time_step, n_route, c_in].
@@ -74,21 +102,18 @@ class SpatioConvLayer(keras.layers.Layer):
     :param c_out: int, size of output channel.
     :return: tensor, [batch_size, time_step, n_route, c_out].
     '''
-    def __init__(self, graph_kernel, Ks, c_in, c_out):
-        super().__init__()
+    def __init__(self, wb: WB, graph_kernel, Ks, c_in, c_out):
         self.graph_kernel = tf.Variable(initial_value = graph_kernel, trainable=False)
         self.Ks = Ks
         self.c_in = c_in
         self.c_out = c_out
-
-    def build(self, input_shape):
         if self.c_in > self.c_out:
-            self.down_sample_conv_weights = self.add_weight(name="down_sample_conv_weights", shape=[1,1,self.c_in,self.c_out], dtype=tf.float64, initializer='glorot_uniform', trainable=True)
-        self.dense_weights = self.add_weight(name="dense_weights", shape=[self.Ks*self.c_in, self.c_out], dtype=tf.float64, initializer='glorot_uniform', trainable=True)
-        self.dense_bias =  self.add_weight(name="dense_bias", shape=[self.c_out], dtype=tf.float64, trainable=True)
+            self.down_sample_conv_weights = WB.get_w(name="down_sample_conv_weights", shape=[1,1,self.c_in,self.c_out], dtype=tf.float64, trainable=True)
+        self.dense_weights = wb.get_w(name="dense_weights", shape=[self.Ks*self.c_in, self.c_out], dtype=tf.float64, trainable=True)
+        self.dense_bias =  wb.get_w(name="dense_bias", shape=[self.c_out], dtype=tf.float64, trainable=True)
 
     @tf.function
-    def call(self, x: tf.Tensor):
+    def __call__(self, x: tf.Tensor):
         _, T, n, _ = x.shape
         x = tf.cast(x, tf.float64)
 
@@ -116,7 +141,7 @@ class SpatioConvLayer(keras.layers.Layer):
         return tf.nn.relu(out)
 
 
-class FullyConLayer(layers.Layer):
+class FullyConLayer:
     '''
     Fully connected layer: maps multi-channels to one.
     :param x: tensor, [batch_size, 1, n_route, channel].
@@ -125,23 +150,20 @@ class FullyConLayer(layers.Layer):
     :param outc: int, output channel size.
     :return: tensor, [batch_size, 1, n_route, 1].
     '''
-    def __init__(self, n, channel, outc):
-        super().__init__()
+    def __init__(self, wb:WB, n, channel, outc):
         self.n = n
         self.channel = channel
         self.outc = outc
+        self.dense_weights = wb.get_w(name="dense_weights", shape=[1, 1, self.channel, self.outc], dtype=tf.float64, trainable=True)
+        self.dense_bias =  wb.get_w(name="dense_bias", shape=[self.n, self.outc], dtype=tf.float64, trainable=True)
 
-    def build(self, input_shape):
-        self.dense_weights = self.add_weight(name="dense_weights", shape=[1, 1, self.channel, self.outc], dtype=tf.float64, initializer='glorot_uniform', trainable=True)
-        self.dense_bias =  self.add_weight(name="dense_bias", shape=[self.n, self.outc], dtype=tf.float64, trainable=True)
-    
     @tf.function
-    def call(self, x: tf.Tensor):
+    def __call__(self, x: tf.Tensor):
         x = tf.cast(x, tf.float64)
         return tf.nn.conv2d(x, self.dense_weights, strides=[1, 1, 1, 1], padding='SAME') + self.dense_bias
 
 
-class OutputLayer(keras.layers.Layer):
+class OutputLayer:
     '''
     Output layer: temporal convolution layers attach with one fully connected layer,
     which map outputs of the last st_conv block to a single-step prediction.
@@ -153,25 +175,23 @@ class OutputLayer(keras.layers.Layer):
     :param norm: str, normalization function.
     :return: tensor, [batch_size, 1, n_route, 1].
     '''
-    def __init__(self, Kt, n, channel, outc=1, act_func="GLU", norm="layer"):
+    def __init__(self, wb: WB, Kt, n, channel, outc=1, act_func="GLU", norm="layer"):
         super().__init__()
         self.Kt = Kt
         self.n = n
         self.outc = outc
         self.act_func = act_func
         self.norm = norm
-        self.layer1 = TemporalConvLayer(self.Kt, channel, channel, self.act_func)
-        self.layer2 = TemporalConvLayer(1, channel, channel, self.act_func)
-        self.layer3 = FullyConLayer(n, channel, outc)
-        if norm == "batch":
-            self.normalization = keras.layers.BatchNormalization(axis=[2,3])
-        elif norm == "layer":
-            self.normalization = keras.layers.LayerNormalization(axis=[2,3])
+        self.layer1 = TemporalConvLayer(wb, self.Kt, channel, channel, self.act_func)
+        self.layer2 = TemporalConvLayer(wb, 1, channel, channel, self.act_func)
+        self.layer3 = FullyConLayer(wb, n, channel, outc)
+        if norm == "layer":
+            self.normalization = LayerNorm(wb, n, channel)
         elif norm != "L2":
             raise NotImplementedError(f'ERROR: Normalization function "{norm}" is not implemented.')
-
+    
     @tf.function
-    def call(self, x:tf.Tensor):
+    def __call__(self, x:tf.Tensor):
         x_i = self.layer1(x)
         if self.norm == "L2":
             x_ln = tf.nn.l2_normalize(x_i, axis=[2,3])
@@ -182,7 +202,7 @@ class OutputLayer(keras.layers.Layer):
         return tf.reshape(fc, shape=[-1, 1, self.n, self.outc])
 
 
-class STConvBlock(keras.layers.Layer):
+class STConvBlock:
     '''
     Spatio-temporal convolutional block, which contains two temporal gated convolution layers
     and one spatial graph convolution layer in the middle.
@@ -197,24 +217,22 @@ class STConvBlock(keras.layers.Layer):
     :param pad: string, Temporal layer padding - VALID or SAME.
     :return: tensor, [batch_size, time_step, n_route, c_out].
     '''
-    def __init__(self, graph_kernel, Ks, Kt, channels, act_func='GLU', norm='layer', dropout=0.2, pad='VALID'):
+    def __init__(self, wb:WB, graph_kernel, Ks, Kt, channels, act_func='GLU', norm='layer', dropout=0.2, pad='VALID'):
         super().__init__()
         self.norm = norm
+        self.rate = dropout
         c_si, c_t, c_oo = channels
         n = graph_kernel.shape[0]
-        self.layer1 = TemporalConvLayer(Kt, c_si, c_t, act_func, pad)
-        self.layer2 = SpatioConvLayer(graph_kernel, Ks, c_t, c_t)
-        self.layer3 = TemporalConvLayer(Kt, c_t, c_oo, act_func, pad)
-        self.dropout_layer = keras.layers.Dropout(rate = dropout)
-        if norm == "batch":
-            self.normalization = keras.layers.BatchNormalization(axis=[2,3])
-        elif norm == "layer":
-            self.normalization = keras.layers.LayerNormalization(axis=[2,3])
+        self.layer1 = TemporalConvLayer(wb,Kt, c_si, c_t, act_func, pad)
+        self.layer2 = SpatioConvLayer(wb,graph_kernel, Ks, c_t, c_t)
+        self.layer3 = TemporalConvLayer(wb,Kt, c_t, c_oo, act_func, pad)
+        if norm == "layer":
+            self.normalization = LayerNorm(wb, n, c_oo)
         elif norm != "L2":
             raise NotImplementedError(f'ERROR: Normalization function "{norm}" is not implemented.')
 
     @tf.function
-    def call(self, x:tf.Tensor):
+    def __call__(self, x:tf.Tensor):
         x1 = self.layer1(x)
         x2 = self.layer2(x1)
         x3 = self.layer3(x2)
@@ -222,4 +240,4 @@ class STConvBlock(keras.layers.Layer):
             out = tf.nn.l2_normalize(x3, axis=[2,3])
         else:
             out = self.normalization(x3)
-        return self.dropout_layer(out)
+        return tf.nn.dropout(out, self.rate)
