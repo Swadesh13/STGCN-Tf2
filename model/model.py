@@ -1,7 +1,7 @@
 import tensorflow as tf
 from .layers import STConvBlock, OutputLayer, WB
 
-class STGCN_Model(tf.keras.Model):
+class STGCN_Model:
     '''
     Spatio-Temporal Graph Convolutional Neural Model.
     :param x: tensor, [batch_size, time_step, n_route, c_in].
